@@ -146,48 +146,68 @@
 	var refreh;
 	var imgFile = '../data/pattern.png';
 	
-	$(window).load (function()
+	window.onload = function()
 	{	// AddChar patterns
 		ol.style.FillPattern.addPattern ("copy (char pattern)", { char:"©" });
 		ol.style.FillPattern.addPattern ("bug (fontawesome)", { char:'\uf188', size:12, font:"10px FontAwesome" });
 		ol.style.FillPattern.addPattern ("smiley (width angle)", { char:'\uf118', size:20, angle:true, font:"15px FontAwesome" });
 
+		var select = document.querySelector("#select");
+		var pselect = document.querySelector("#pselect");
+
 		// Popup
-		$("#select").click(function()
-		{	$("#pselect").toggle();
+		select.addEventListener('click', function()
+		{	pselect.style.display = pselect.style.display == '' ? 'none': '';
 		});
 
 		var pat = "hatch"
 		var spattern = $("#pselect");
 		for (var i in ol.style.FillPattern.prototype.patterns)
 		{	var p = new ol.style.FillPattern({ pattern:i })
-			$("<div>").attr('title',i)
-					.css("background-image",'url("'+p.getImage().toDataURL()+'")')
-					.click(function(){ pat = $(this).attr("title"); refresh(); })
-					.appendTo(spattern);
+			var div = document.createElement('div');
+					div.title = i;
+					div.style.backgroundImage = 'url("'+p.getImage().toDataURL()+'")';
+					div.addEventListener('click', function(){
+						pat = this.title;
+						refresh();
+					});
+			pselect.appendChild(div);
 		}
 		var p = new ol.style.FillPattern({ image: new ol.style.Icon({ src : imgFile }) });
-		$("<div>").attr('title','Image (PNG)')
-				.css("background-image",'url("'+imgFile+'")')
-				.click(function(){ pat = $(this).attr("title"); refresh(); })
-				.appendTo(spattern);
+		var div = document.createElement('div');
+				div.title = 'Image (PNG)';
+				div.style.backgroundImage = 'url("'+imgFile+'")';
+				div.addEventListener('click', function(){
+					pat = this.title;
+					refresh();
+				});
+		pselect.appendChild(div);
+
+		// References to form elements
+		var size = document.querySelector('#size');
+		var spacing = document.querySelector('#spacing');
+		var angle = document.querySelector('#angle');
+		var color = document.querySelector('#color');
+		var offset = document.querySelector('#offset');
+		var scale = document.querySelector('#scale');
+		var bg = document.querySelector('#bg');
 
 		// Redraw map
 		refresh = function()
-		{	$("#pselect").hide();
+		{	pselect.style.display = 'none';
 			vector.changed();
-			if ( $.inArray(pat,["hatch","cross","dot","circle","square","tile"]) < 0 )
-			{	$("#size").prop("disabled",true);
-				$("#spacing").prop("disabled",true);
-				$("#angle").prop("disabled",true);
-				$("#angle").next().text("");
+			if ( !(["hatch","cross","dot","circle","square","tile"].includes(pat)))
+			{	size.disabled = true;
+				spacing.disabled = true;
+				angle.disabled = true;
+				angle.nextElementSibling.textContent = "";
 			}
 			else
-			{	$("#size").prop("disabled",false);
-				$("#spacing").prop("disabled",false);
-				$("#angle").prop("disabled",false);
-				if (pat=="hatch") $("#angle").next().text("(deg)");
-				else $("#angle").next().text("(bool)");
+			{	size.disabled = false;
+				spacing.disabled = false;
+				angle.disabled = false;
+				if (pat=="hatch") angle.nextElementSibling.textContent = "(deg)";
+				else angle.nextElementSibling.textContent = "(bool)";
 			}
 			// Calculate image to be drawn outside the map
 			var p = new ol.style.FillPattern(
@@ -195,11 +215,11 @@
 							image: (pat=='Image (PNG)') ? new ol.style.Icon({ src : imgFile }) : undefined,
 							ratio: 2,
 							color: "#000",
-							size: Number($("#size").val()),
-							spacing: Number($("#spacing").val()),
-							angle: Number($("#angle").val())
+							size: Number(size.value),
+							spacing: Number(spacing.value),
+							angle: Number(angle.value)
 						});
-			$("#select").css('background-image', 'url('+p.getImage().toDataURL()+')');
+			select.style.backgroundImage = 'url('+p.getImage().toDataURL()+')';
 		};
 
 		// Layers
@@ -237,13 +257,13 @@
 							image: (p=='Image (PNG)') ? new ol.style.Icon({ src : imgFile }) : undefined,
 							ratio: 1,
 							icon: p=='Image (PNG)' ? new ol.style.Icon ({src:'data/target.png'}) : undefined,
-							color: $("#color").val(),
-							offset: Number($("#offset").val()),
-							scale: Number($("#scale").val()),
-							fill: new ol.style.Fill ({ color:$("#bg").val() }),
-							size: Number($("#size").val()),
-							spacing: Number($("#spacing").val()),
-							angle: Number($("#angle").val())
+							color: color.value,
+							offset: Number(offset.value),
+							scale: Number(scale.value),
+							fill: new ol.style.Fill ({ color:bg.value }),
+							size: Number(size.value),
+							spacing: Number(spacing.value),
+							angle: Number(angle.value)
 						})
 				})];
 		}
@@ -261,10 +281,10 @@
 			({	type: 'Polygon',
 				source: vector.getSource()
 			});
-		map.addInteraction(interaction); 
+		map.addInteraction(interaction);
 
 		refresh();
-	});
+	};
 	</script>
 
 </body>
