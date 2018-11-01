@@ -33,22 +33,23 @@ ol_control_LayerPopup.prototype.overflow = function(){};
  */
 ol_control_LayerPopup.prototype.drawList = function(ul, layers)
 {	var self=this;
-	
-	var setVisibility = function(e) 
-	{	e.preventDefault(); 
-		var l = $(this).data("layer");
+
+	var setVisibility = function(e)
+	{	e.preventDefault();
+		var l = this.getAttribute("data-layer");
 		self.switchLayerVisibility(l,layers);
 	};
 
 	layers.forEach(function(layer)
-	{	if (self.displayInLayerSwitcher(layer)) 
-		{	var d = $("<li>").text(layer.get("title") || layer.get("name"))
-					.data ('layer', layer)
-					.click (setVisibility)
-					.on ("touchstart", setVisibility)
-					.appendTo(ul);
-			if (self.testLayerVisibility(layer)) d.addClass("ol-layer-hidden");
-			if (layer.getVisible()) d.addClass("select");
+	{	if (self.displayInLayerSwitcher(layer))
+		{	var d = document.createElement("li");
+					d.textContent = layer.get("title") || layer.get("name");
+					d.setAttribute('data-layer', layer);
+					d.addEventListener("click", setVisibility);
+					d.addEventListener("touchstart", setVisibility);
+			ul.get(0).appendChild(d);
+			if (self.testLayerVisibility(layer)) d.classList.add("ol-layer-hidden");
+			if (layer.getVisible()) d.classList.add("select");
 		}
 	});
 };
