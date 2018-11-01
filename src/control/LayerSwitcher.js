@@ -45,6 +45,10 @@ var ol_control_LayerSwitcher = function(options)
 	this.hasextent = options.extent || options.onextent;
 	this.hastrash = options.trash;
 	this.reordering = (options.reordering!==false);
+	this._events = {
+		opacity: {},
+		reordering: {}
+	};
 
 	// displayInLayerSwitcher
 	if (typeof(options.displayInLayerSwitcher) === 'function') {
@@ -52,47 +56,61 @@ var ol_control_LayerSwitcher = function(options)
 	}
 
 	var element;
-	if (options.target) 
-	{	element = $("<div>").addClass(options.switcherClass || "ol-layerswitcher");
+	if (options.target)
+	{	element = document.createElement("div");
+		element.className = options.switcherClass || "ol-layerswitcher";
 	}
 	else
-	{	element = $("<div>").addClass((options.switcherClass || 'ol-layerswitcher') +' ol-unselectable ol-control ol-collapsed');
-	
-		this.button = $("<button>")
-					.attr('type','button')
-					.on("touchstart", function(e)
-					{	element.toggleClass("ol-collapsed"); 
-						e.preventDefault(); 
+	{	element = document.createElement("div");
+		element.className = ((options.switcherClass || 'ol-layerswitcher') + ' ol-unselectable ol-control ol-collapsed').trim();
+
+		this.button = document.createElement("button");
+		this.button.setAttribute('type','button');
+		this.button.addEventListener("touchstart", function(e)
+					{	element.classList.toggle("ol-collapsed");
+						e.preventDefault();
 						self.overflow();
-					})
-					.click (function()
-					{	element.toggleClass("ol-forceopen").addClass("ol-collapsed"); 
+					});
+		this.button.addEventListener("click", function()
+					{	element.classList.toggle("ol-forceopen");
+						element.classList.add("ol-collapsed");
 						self.overflow();
-					})
-					.appendTo(element);
+					});
+		element.appendChild(this.button);
 		if (options.mouseover)
-		{	$(element).mouseleave (function(){ element.addClass("ol-collapsed"); })
-				.mouseover(function(){ element.removeClass("ol-collapsed"); });
+		{	element.addEventListener("mouseleave", function(){ element.classList.add("ol-collapsed"); })
+			element.addEventListener("mouseover", function(){ element.classList.remove("ol-collapsed"); });
 		}
-		this.topv = $("<div>").addClass("ol-switchertopdiv")
-			.click(function(){ self.overflow("+50%"); })
-			.appendTo(element);
-		this.botv = $("<div>").addClass("ol-switcherbottomdiv")
-			.click(function(){ self.overflow("-50%"); })
-			.appendTo(element);
+		this.topv = document.createElement("div");
+		this.topv.classList.add("ol-switchertopdiv");
+		this.topv.addEventListener("click", function(){ self.overflow("+50%"); })
+		element.appendChild(this.topv);
+		this.botv = document.createElement("div");
+		this.botv.classList.add("ol-switcherbottomdiv")
+		this.botv.addEventListener("click", function(){ self.overflow("-50%"); });
+		element.appendChild(this.botv);
 	}
-	this.panel_ = $("<ul>").addClass("panel")
-				.appendTo(element);
-	this.panel_.on ('mousewheel DOMMouseScroll onmousewheel', function(e)
+	this.panel_ = document.createElement("ul");
+	this.panel_.classList.add("panel");
+
+	var mouseWheelEventFunction = function(e)
 		{	if (self.overflow(Math.max(-1, Math.min(1, (e.originalEvent.wheelDelta || -e.originalEvent.detail)))))
 			{	e.stopPropagation();
 				e.preventDefault();
 			}
-		});
-	this.header_ = $("<li>").addClass("ol-header").appendTo(this.panel_);
+		}
+	this.panel_.addEventListener('mousewheel', mouseWheelEventFunction);
+	this.panel_.addEventListener('DOMMouseScroll', mouseWheelEventFunction);
+	this.panel_.addEventListener('onmousewheel', mouseWheelEventFunction);
+	this.header_ = document.createElement("li");
+	this.header_.classList.add("ol-header");
+	this.panel_.appendChild(this.header_);
+	element.appendChild(this.panel_);
+
+	console.log(element);
 
 	ol_control_Control.call(this,
-	{	element: element.get(0),
+	{	element: element,
 		target: options.target
 	});
 
@@ -130,7 +148,7 @@ ol_control_LayerSwitcher.prototype.displayInLayerSwitcher = function(layer) {
 ol_control_LayerSwitcher.prototype.setMap = function(map)
 {   ol_control_Control.prototype.setMap.call(this, map);
 	this.drawPanel();
-	
+
 	if (this._listener) {
 		if (this._listener) ol_Observable_unByKey(this._listener.change);
 		if (this._listener) ol_Observable_unByKey(this._listener.moveend);
@@ -140,7 +158,7 @@ ol_control_LayerSwitcher.prototype.setMap = function(map)
 
 	this.map_ = map;
 	// Get change (new layer added or removed)
-	if (map) 
+	if (map)
 	{	this._listener = {
 			change: map.getLayerGroup().on('change', this.drawPanel.bind(this)),
 			moveend: map.on('moveend', this.viewChange.bind(this)),
@@ -153,7 +171,7 @@ ol_control_LayerSwitcher.prototype.setMap = function(map)
 
 */
 ol_control_LayerSwitcher.prototype.setHeader = function(html)
-{	this.header_.html(html);
+{	this.header_.appendChild(html);
 };
 
 /** Calculate overflow and add scrolls
@@ -163,49 +181,53 @@ ol_control_LayerSwitcher.prototype.overflow = function(dir)
 {	
 	if (this.button) 
 	{	// Nothing to show
-		if (this.panel_.css('display')=='none')
-		{	$(this.element).css("height", "auto");
+		if (this.panel_.style.display == 'none')
+		{	this.element.style.height = "auto";
 			return;
 		}
 		// Calculate offset
-		var h = $(this.element).outerHeight();
-		var hp = this.panel_.outerHeight();
-		var dh = this.button.position().top + this.button.outerHeight(true);
-		var top = this.panel_.position().top-dh;
+		var h = this.element.offsetHeight;
+		var hp = this.panel_.offsetHeight;
+		var dh = this.button.offsetTop + (
+			this.button.offsetHeight +
+			parseInt(getComputedStyle(this.button).marginTop) +
+			parseInt(getComputedStyle(this.button).marginBottom)
+		);
+		var top = this.panel_.offsetTop-dh;
 		if (hp > h-dh)
 		{	// Bug IE: need to have an height defined
-			$(this.element).css("height", "100%");
+			this.element.style.height = "100%";
 			switch (dir)
-			{	case 1: top += 2*$("li.visible .li-content",this.panel_).height(); break;
-				case -1: top -= 2*$("li.visible .li-content",this.panel_).height(); break;
+			{	case 1: top += 2*this.panel_.querySelector("li.visible .li-content").clientHeight; break;
+				case -1: top -= 2*this.panel_.querySelector("li.visible .li-content").clientHeight; break;
 				case "+50%": top += Math.round(h/2); break;
 				case "-50%": top -= Math.round(h/2); break;
 				default: break;
 			}
 			// Scroll div
-			if (top+hp <= h-3*dh/2) 
+			if (top+hp <= h-3*dh/2)
 			{	top = h-3*dh/2-hp;
-				this.botv.hide();
+				this.botv.style.display = "none";
 			}
 			else
-			{	this.botv.css("display","");//show();
+			{	this.botv.style.display = "";
 			}
-			if (top >= 0) 
+			if (top >= 0)
 			{	top = 0;
-				this.topv.hide();
+				this.topv.style.display = "none";
 			}
 			else
-			{	this.topv.css("display","");
+			{	this.topv.style.display = "";
 			}
 			// Scroll ?
-			this.panel_.css('top', top+"px");
+			this.panel_.style.top = top+"px";
 			return true;
 		}
 		else
-		{	$(this.element).css("height", "auto");
-			this.panel_.css('top', "0px");
-			this.botv.hide();
-			this.topv.hide();
+		{	this.element.style.height = "auto";
+			this.panel_.style.top = "0px";
+			this.botv.style.display = "none";
+			this.topv.style.display = "none"
 			return false;
 		}
 	}
@@ -221,20 +243,20 @@ ol_control_LayerSwitcher.prototype.viewChange = function(e)
 {
 	var map = this.map_;
 	var res = this.map_.getView().getResolution();
-	$("li", this.panel_).each(function()
-	{	var l = $(this).data('layer');
+	Array.prototype.slice.call(this.panel_.querySelectorAll("li")).forEach(function(li)
+	{	var l = li.dataLayer;
 		if (l)
-		{	if (l.getMaxResolution()<=res || l.getMinResolution()>=res) $(this).addClass("ol-layer-hidden");
-			else 
+		{	if (l.getMaxResolution()<=res || l.getMinResolution()>=res) li.classList.add("ol-layer-hidden");
+			else
 			{	var ex0 = l.getExtent();
 				if (ex0)
 				{	var ex = map.getView().calculateExtent(map.getSize());
 					if (!ol_extent_intersects(ex, ex0))
-					{	$(this).addClass("ol-layer-hidden");
+					{	li.classList.add("ol-layer-hidden");
 					}
-					else $(this).removeClass("ol-layer-hidden");
+					else li.classList.remove("ol-layer-hidden");
 				}
-				else $(this).removeClass("ol-layer-hidden");
+				else li.classList.remove("ol-layer-hidden");
 			}
 		}
 	});
@@ -257,7 +279,11 @@ ol_control_LayerSwitcher.prototype.drawPanel = function(e)
  */
 ol_control_LayerSwitcher.prototype.drawPanel_ = function(e)
 {	if (--this.dcount || this.dragging_) return;
-	$("li", this.panel_).not(".ol-header").remove();
+	Array.prototype.slice.call(this.panel_.querySelectorAll("li")).forEach(function(li) {
+		if (!(li.classList.contains("ol-header"))) {
+			li.parentNode.removeChild(li);
+		}
+	});
 	this.drawList (this.panel_, this.getMap().getLayers());
 };
 
@@ -268,7 +294,7 @@ ol_control_LayerSwitcher.prototype.drawPanel_ = function(e)
 ol_control_LayerSwitcher.prototype.switchLayerVisibility = function(l, layers)
 {
 	if (!l.get('baseLayer')) l.setVisible(!l.getVisible());
-	else 
+	else
 	{	if (!l.getVisible()) l.setVisible(true);
 		layers.forEach(function(li)
 		{	if (l!==li && li.get('baseLayer') && li.getVisible()) li.setVisible(false);
@@ -285,7 +311,7 @@ ol_control_LayerSwitcher.prototype.testLayerVisibility = function(layer)
 	if (this.map_)
 	{	var res = this.map_.getView().getResolution();
 		if (layer.getMaxResolution()<=res || layer.getMinResolution()>=res) return false;
-		else 
+		else
 		{	var ex0 = layer.getExtent();
 			if (ex0)
 			{	var ex = this.map_.getView().calculateExtent(this.map_.getSize());
@@ -303,50 +329,54 @@ ol_control_LayerSwitcher.prototype.testLayerVisibility = function(layer)
 *	@private
 */
 ol_control_LayerSwitcher.prototype.dragOrdering_ = function(e)
-{	var drag = e.data;
+{	e.data = this;
+	var drag = e.data;
 	switch (e.type)
 	{	// Start ordering
-		case 'mousedown': 
+		case 'mousedown':
 		case 'touchstart':
 		{	e.stopPropagation();
 			e.preventDefault();
-			var pageY = e.pageY 
+			var pageY = e.pageY
 					|| (e.originalEvent.touches && e.originalEvent.touches.length && e.originalEvent.touches[0].pageY) 
 					|| (e.originalEvent.changedTouches && e.originalEvent.changedTouches.length && e.originalEvent.changedTouches[0].pageY);
-			drag = 
+			drag =
 				{	self: drag.self,
-					elt: $(e.currentTarget).closest("li"), 
-					start: true, 
-					element: drag.self.element, 
-					panel: drag.self.panel_, 
+					elt: e.currentTarget.closest("li"),
+					start: true,
+					element: drag.self.element,
+					panel: drag.self.panel_,
 					pageY: pageY
 				};
-			drag.elt.parent().addClass('drag');
-			$(document).on("mouseup mousemove touchend touchcancel touchmove", drag, drag.self.dragOrdering_);
+			drag.elt.parentElement.classList.add('drag');
+			["mouseup", "mousemove", "touchend", "touchcancel", "touchmove"].forEach(function(eventName) {
+				drag.self._events.reordering[eventName] = drag.self.dragOrdering_.bind(drag);
+				document.addEventListener(eventName, drag.self._events.reordering[eventName]);
+			})
 			break;
 		}
 		// Stop ordering
-		case 'touchcancel': 
-		case 'touchend': 
-		case 'mouseup':	
-		{	if (drag.target) 
+		case 'touchcancel':
+		case 'touchend':
+		case 'mouseup':
+		{	if (drag.target)
 			{	// Get drag on parent
 				var drop = drag.layer;
 				var target = drag.target;
-				if (drop && target) 
+				if (drop && target)
 				{	var collection ;
 					if (drag.group) collection = drag.group.getLayers();
 					else collection = drag.self.getMap().getLayers();
 					var layers = collection.getArray();
 					// Switch layers
-					for (var i=0; i<layers.length; i++) 
-					{	if (layers[i]==drop) 
+					for (var i=0; i<layers.length; i++)
+					{	if (layers[i]==drop)
 						{	collection.removeAt (i);
 							break;
 						}
 					}
-					for (var j=0; j<layers.length; j++) 
-					{	if (layers[j]==target) 
+					for (var j=0; j<layers.length; j++)
+					{	if (layers[j]==target)
 						{	if (i>j) collection.insertAt (j,drop);
 							else collection.insertAt (j+1,drop);
 							break;
@@ -354,78 +384,84 @@ ol_control_LayerSwitcher.prototype.dragOrdering_ = function(e)
 					}
 				}
 			}
-			
-			$("li",drag.elt.parent()).removeClass("dropover dropover-after dropover-before");
-			drag.elt.removeClass("drag");
-			drag.elt.parent().removeClass("drag");
-			$(drag.element).removeClass('drag');
-			if (drag.div) drag.div.remove();
 
-			$(document).off("mouseup mousemove touchend touchcancel touchmove", drag.self.dragOrdering_);
+			drag.elt.parentElement.querySelector("li").classList.remove("dropover", "dropover-after", "dropover-before");
+			drag.elt.classList.remove("drag");
+			drag.elt.parentElement.classList.remove("drag");
+			drag.element.classList.remove('drag');
+			if (drag.div) drag.div.parentNode.removeChild(drag.div);
+			["mouseup", "mousemove", "touchend", "touchcancel", "touchmove"].forEach(function(eventName) {
+				document.removeEventListener(eventName, drag.self._events.reordering[eventName]);
+			})
 			break;
 		}
 		// Ordering
 		case 'mousemove':
 		case 'touchmove':
 		{	// First drag (more than 2 px) => show drag element (ghost)
-			var pageY = e.pageY 
-					|| (e.originalEvent.touches && e.originalEvent.touches.length && e.originalEvent.touches[0].pageY) 
-					|| (e.originalEvent.changedTouches && e.originalEvent.changedTouches.length && e.originalEvent.changedTouches[0].pageY);
+			var pageY = e.pageY
+					|| (e.touches && e.touches.length && e.touches[0].pageY)
+					|| (e.changedTouches && e.changedTouches.length && e.changedTouches[0].pageY);
 			if (drag.start && Math.abs(drag.pageY - pageY) > 2)
 			{	drag.start = false;
-				drag.elt.addClass("drag");
-				drag.layer = drag.elt.data('layer');
+				drag.elt.classList.add("drag");
+				drag.layer = drag.elt.dataLayer;
 				drag.target = false;
-				drag.group = drag.elt.parent().parent().data('layer');
+				drag.group = drag.elt.parentElement.parentElement.dataLayer;
 				// Ghost div
-				drag.div = $("<li>").appendTo(drag.panel);
-				drag.div.css ({ position: "absolute", "z-index":10000, left:drag.elt.position().left, opacity:0.5 })
-						.html($(drag.elt).html())
-						.addClass("ol-dragover")
-						.width(drag.elt.outerWidth())
-						.height(drag.elt.height());
-				$(drag.element).addClass('drag');
+				drag.div = document.createElement("li");
+				drag.panel.appendChild(drag.div);
+				drag.div.style.position = "absolute";
+				drag.div.style.zIndex = 10000;
+				drag.div.style.left = drag.elt.offsetLeft;
+				drag.div.style.opacity = 0.5;
+				drag.div.innerHTML = drag.elt.innerHTML;
+				drag.div.classList.add("ol-dragover")
+				drag.div.clientWidth = drag.elt.offsetWidth;
+				drag.div.clientHeight = drag.elt.clientHeight;
+				drag.element.classList.add('drag');
 			}
 			if (!drag.start)
 			{	e.preventDefault();
 				e.stopPropagation();
 
 				// Ghost div
-				drag.div.css ({ top:pageY - drag.panel.offset().top + drag.panel.scrollTop() +5 });
-				
+				var ghost_offset_top = drag.panel.getBoundingClientRect().top + window.pageYOffset - document.documentElement.clientTop;
+				drag.div.style.top = String(pageY - ghost_offset_top + (drag.panel.pageYOffset ? drag.panel.pageYOffset : 0) + 5) + 'px';
+
 				var li;
-				if (!e.originalEvent.touches) li = $(e.target);
-				else li = $(document.elementFromPoint(e.originalEvent.touches[0].clientX, e.originalEvent.touches[0].clientY));
-				if (li.hasClass("ol-switcherbottomdiv")) 
+				if (!e.touches) li = e.target;
+				else li = document.elementFromPoint(e.originalEvent.touches[0].clientX, e.originalEvent.touches[0].clientY);
+				if (li.classList.contains("ol-switcherbottomdiv"))
 				{	drag.self.overflow(-1);
 					console.log('bottom')
 				}
-				else if (li.hasClass("ol-switchertopdiv")) 
+				else if (li.classList.contains("ol-switchertopdiv"))
 				{	drag.self.overflow(1);
 				}
-				if (!li.is("li")) li = li.closest("li");
-				if (!li.hasClass('dropover')) $("li", drag.elt.parent()).removeClass("dropover dropover-after dropover-before");
-				if (li.parent().hasClass('drag') && li.get(0) !== drag.elt.get(0))
-				{	var target = li.data("layer");
+				if (!li.nodeName.toLowerCase() == "li") li = li.closest("li");
+				if (!li.classList.contains('dropover')) drag.elt.parentElement.querySelector("li").classList.remove("dropover", "dropover-after", "dropover-before");
+				if (li.parentElement.classList.contains('drag') && li !== drag.elt)
+				{	var target = li.dataLayer;
 					// Don't mix layer level
 					if (target && !target.get("allwaysOnTop") == !drag.layer.get("allwaysOnTop"))
-					{	li.addClass("dropover");
-						li.addClass((drag.elt.position().top < li.position().top)?"dropover-after":"dropover-before");
+					{	li.classList.add("dropover");
+						li.classList.add((drag.elt.offsetTop < li.offsetTop)?"dropover-after":"dropover-before");
 						drag.target = target;
 					}
 					else
 					{	drag.target = false;
 					}
-					drag.div.show();
-				} 
-				else 
-				{	drag.target = false;
-					if (li.get(0) === drag.elt.get(0)) drag.div.hide();
-					else drag.div.show();
+					drag.div.style.display = '';
 				}
-				
-				if (!drag.target) drag.div.addClass("forbidden");
-				else drag.div.removeClass("forbidden");
+				else
+				{	drag.target = false;
+					if (li === drag.elt) drag.div.style.display = 'none';
+					else drag.div.style.display = '';
+				}
+
+				if (!drag.target) drag.div.classList.add("forbidden");
+				else drag.div.classList.remove("forbidden");
 			}
 			break;
 		}
@@ -435,46 +471,57 @@ ol_control_LayerSwitcher.prototype.dragOrdering_ = function(e)
 };
 
 
-/** Change opacity on drag 
+/** Change opacity on drag
 *	@param {event} e drag event
 *	@private
 */
 ol_control_LayerSwitcher.prototype.dragOpacity_ = function(e)
-{	var drag = e.data;
+{	e.data = this;
+	var drag = e.data;
+  console.log(e.type);
 	switch (e.type)
 	{	// Start opacity
-		case 'mousedown': 
+		case 'mousedown':
 		case 'touchstart':
 		{	e.stopPropagation();
 			e.preventDefault();
-			drag.start = e.pageX 
-					|| (e.originalEvent.touches && e.originalEvent.touches.length && e.originalEvent.touches[0].pageX) 
+			drag.start = e.pageX
+					|| (e.originalEvent.touches && e.originalEvent.touches.length && e.originalEvent.touches[0].pageX)
 					|| (e.originalEvent.changedTouches && e.originalEvent.changedTouches.length && e.originalEvent.changedTouches[0].pageX);
-			drag.elt = $(e.target);
-			drag.layer = drag.elt.closest("li").data('layer')
+			drag.elt = e.target;
+			drag.layer = drag.elt.closest("li").dataLayer;
+			drag.self = this.self;
 			drag.self.dragging_ = true;
-			$(document).on("mouseup touchend mousemove touchmove touchcancel", drag, drag.self.dragOpacity_);
+			// console.log(this.dragging_);
+			["mouseup", "touchend", "mousemove", "touchmove", "touchcancel"].forEach(function(eventName) {
+					drag.self._events.opacity[eventName] = drag.self.dragOpacity_.bind(drag);
+					document.addEventListener(eventName, drag.self._events.opacity[eventName]);
+			});
 			break;
 		}
 		// Stop opacity
-		case 'touchcancel': 
-		case 'touchend': 
-		case 'mouseup':	
-		{	$(document).off("mouseup touchend mousemove touchmove touchcancel", drag.self.dragOpacity_);
+		case 'touchcancel':
+		case 'touchend':
+		case 'mouseup':
+		{
+			["mouseup", "touchend", "mousemove", "touchmove", "touchcancel"].forEach(function(eventName) {
+					document.removeEventListener(eventName, drag.self._events.opacity[eventName]);
+			})
 			drag.layer.setOpacity(drag.opacity);
-			drag.elt.parent().next().text(Math.round(drag.opacity*100));
+			drag.elt.parentElement.nextElementSibling.textContent = Math.round(drag.opacity*100);
 			drag.self.dragging_ = false;
-			drag = false;
+			// drag = false;
 			break;
 		}
-		// Move opcaity
-		default: 
-		{	var x = e.pageX 
+		// Move opacity
+		default:
+		{	var x = e.pageX
 				|| (e.originalEvent.touches && e.originalEvent.touches.length && e.originalEvent.touches[0].pageX) 
 				|| (e.originalEvent.changedTouches && e.originalEvent.changedTouches.length && e.originalEvent.changedTouches[0].pageX);
-			var dx = Math.max ( 0, Math.min( 1, (x - drag.elt.parent().offset().left) / drag.elt.parent().width() ));
-			drag.elt.css("left", (dx*100)+"%");
-			drag.elt.parent().next().text(Math.round(drag.opacity*100));
+			var offset_left_parent = drag.elt.parentElement.getBoundingClientRect().left + window.pageXOffset - document.documentElement.clientLeft;
+			var dx = Math.max ( 0, Math.min( 1, (x - offset_left_parent) / drag.elt.parentElement.clientWidth ));
+			drag.elt.style.left = (dx*100)+"%";
+			drag.elt.parentElement.nextElementSibling.textContent = Math.round(drag.opacity*100);
 			drag.opacity = dx;
 			drag.layer.setOpacity(dx);
 			break;
@@ -491,16 +538,16 @@ ol_control_LayerSwitcher.prototype.dragOpacity_ = function(e)
 ol_control_LayerSwitcher.prototype.drawList = function(ul, collection)
 {	var self = this;
 	var layers = collection.getArray();
-	var setVisibility = function(e) 
+	var setVisibility = function(e)
 	{	e.stopPropagation();
 		e.preventDefault();
-		var l = $(this).parent().parent().data("layer");
+		var l = this.parentElement.parentElement.dataLayer;
 		self.switchLayerVisibility(l,collection);
 	};
 	function moveLayer (l, layers, inc)
-	{	
+	{
 		for (var i=0; i<layers.getLength(); i++)
-		{	if (layers.item(i) === l) 
+		{	if (layers.item(i) === l)
 			{	layers.remove(l);
 				layers.insertAt(i+inc, l);
 				return true;
@@ -509,97 +556,114 @@ ol_control_LayerSwitcher.prototype.drawList = function(ul, collection)
 		}
 		return false;
 	};
-	function moveLayerUp(e) 
-	{	e.stopPropagation();
-		e.preventDefault(); 
-		moveLayer($(this).closest('li').data("layer"), self.map_.getLayers(), +1); 
-	};
-	function moveLayerDown(e) 
-	{	e.stopPropagation();
-		e.preventDefault(); 
-		moveLayer($(this).closest('li').data("layer"), self.map_.getLayers(), -1); 
-	};
-	function onInfo(e) 
-	{	e.stopPropagation();
-		e.preventDefault(); 
-		var l = $(this).closest('li').data("layer");
-		self.oninfo(l); 
-		self.dispatchEvent({ type: "info", layer: l });
-	};
-	function zoomExtent(e) 
-	{	e.stopPropagation();
-		e.preventDefault(); 
-		var l = $(this).closest('li').data("layer");
-		if (self.onextent) self.onextent(l); 
-		else self.map_.getView().fit (l.getExtent(), self.map_.getSize()); 
-		self.dispatchEvent({ type: "extent", layer: l });
-	};
-	function removeLayer(e) 
+	function moveLayerUp(e)
 	{	e.stopPropagation();
 		e.preventDefault();
-		var li = $(this).closest("ul").parent();
-		if (li.data("layer")) 
-		{	li.data("layer").getLayers().remove($(this).closest('li').data("layer"));
-			if (li.data("layer").getLayers().getLength()==0 && !li.data("layer").get('noSwitcherDelete')) 
-			{	removeLayer.call($(".layerTrash", li), e);
+		moveLayer(this.closest('li').dataLayer, self.map_.getLayers(), +1);
+	};
+	function moveLayerDown(e)
+	{	e.stopPropagation();
+		e.preventDefault();
+		moveLayer(this.closest('li').dataLayer, self.map_.getLayers(), -1);
+	};
+	function onInfo(e)
+	{	e.stopPropagation();
+		e.preventDefault();
+		var l = this.closest('li').dataLayer;
+		self.oninfo(l);
+		self.dispatchEvent({ type: "info", layer: l });
+	};
+	function zoomExtent(e)
+	{	e.stopPropagation();
+		e.preventDefault();
+		var l = this.closest('li').dataLayer;
+		if (self.onextent) self.onextent(l);
+		else self.map_.getView().fit (l.getExtent(), self.map_.getSize());
+		self.dispatchEvent({ type: "extent", layer: l });
+	};
+	function removeLayer(e)
+	{	e.stopPropagation();
+		e.preventDefault();
+		var li = this.closest('ul').parentElement;
+		if (li.dataLayer)
+		{	li.dataLayer.getLayers().remove(this.closest('li').dataLayer);
+			if (li.dataLayer.getLayers().getLength()==0 && !li.dataLayer.get('noSwitcherDelete'))
+			{	removeLayer.call(li.querySelector(".layerTrash"), e);
 			}
 		}
-		else self.map_.removeLayer($(this).closest('li').data("layer"));
+		else self.map_.removeLayer(this.closest('li').dataLayer);
 	};
-	
+
 	// Add the layer list
 	for (var i=layers.length-1; i>=0; i--)
 	{	var layer = layers[i];
 		if (!self.displayInLayerSwitcher(layer)) continue;
 
-		var li = $("<li>").addClass((layer.getVisible()?"visible ":" ")+(layer.get('baseLayer')?"baselayer":""))
-						.data("layer",layer).appendTo(ul);
+		var li = document.createElement("li");
+		if (layer.getVisible()) {
+			li.classList.add("visible");
+		}
+		if (layer.get('baseLayer')) {
+			li.classList.add("baselayer");
+		}
+		li.dataLayer = layer;
+		ul.appendChild(li);
 
-		var layer_buttons = $("<div>").addClass("ol-layerswitcher-buttons").appendTo(li);
+		var layer_buttons = document.createElement("div");
+				layer_buttons.classList.add("ol-layerswitcher-buttons");
+				li.appendChild(layer_buttons);
 
-		var d = $("<div>").addClass('li-content').appendTo(li);
-		if (!this.testLayerVisibility(layer)) d.addClass("ol-layer-hidden");
-		
+		var d = document.createElement("div");
+				d.classList.add('li-content');
+				li.appendChild(d);
+		if (!this.testLayerVisibility(layer)) d.classList.add("ol-layer-hidden");
+
 		// Visibility
-		$("<input>")
-			.attr('type', layer.get('baseLayer') ? 'radio' : 'checkbox')
-			.attr("checked",layer.getVisible())
-			.on ('click', setVisibility)
-			.appendTo(d);
+		var div_input_visibility = document.createElement("input");
+				div_input_visibility.setAttribute('type', layer.get('baseLayer') ? 'radio' : 'checkbox');
+				div_input_visibility.checked = layer.getVisible();
+				div_input_visibility.addEventListener('click', setVisibility);
+				d.appendChild(div_input_visibility);
+
 		// Label
-		$("<label>").text(layer.get("title") || layer.get("name"))
-			.attr('title', layer.get("title") || layer.get("name"))
-			.on ('click', setVisibility)
-			.attr('unselectable', 'on')
-			.css('user-select', 'none')
-			.on('selectstart', false)
-			.appendTo(d);
+		var label = document.createElement("label");
+				label.textContent = layer.get("title") || layer.get("name");
+				label.setAttribute('title', layer.get("title") || layer.get("name"));
+				label.setAttribute('unselectable', 'on');
+				label.style.userSelect = 'none';
+				label.addEventListener('click', setVisibility);
+				label.addEventListener('selectstart', function(){ return false; })
+				d.appendChild(label);
 
 		//  up/down
 		if (this.reordering)
 		{	if ( (i<layers.length-1 && (layer.get("allwaysOnTop") || !layers[i+1].get("allwaysOnTop")) )
 				|| (i>0 && (!layer.get("allwaysOnTop") || layers[i-1].get("allwaysOnTop")) ) )
-			{	$("<div>").addClass("layerup")
-					.on ("mousedown touchstart", {self:this}, this.dragOrdering_ )
-					.attr("title", this.tip.up)
-					.appendTo(layer_buttons);
+			{		var tip_up = document.createElement("div");
+							tip_up.classList.add("layerup")
+							tip_up.setAttribute("title", this.tip.up)
+							tip_up.addEventListener("mousedown", self.dragOrdering_.bind({self: this}));
+							tip_up.addEventListener("touchstart", self.dragOrdering_.bind({self: this}));
+					layer_buttons.appendChild(tip_up);
 			}
 		}
 
 		// Show/hide sub layers
-		if (layer.getLayers) 
+		if (layer.getLayers)
 		{	var nb = 0;
 			layer.getLayers().forEach(function(l)
 			{	if (self.displayInLayerSwitcher(l)) nb++;
 			});
-			if (nb) 
-			{	$("<div>").addClass(layer.get("openInLayerSwitcher") ? "collapse-layers" : "expend-layers" )
-					.click(function()
-					{	var l = $(this).closest('li').data("layer");
+			if (nb)
+			{	var tip_plus = document.createElement("div");
+						tip_plus.classList.add(layer.get("openInLayerSwitcher") ? "collapse-layers" : "expend-layers" );
+						tip_plus.setAttribute("title", this.tip.plus)
+					tip_plus.addEventListener("click", function()
+					{	var l = this.closest('li').dataLayer;
 						l.set("openInLayerSwitcher", !l.get("openInLayerSwitcher") )
 					})
-					.attr("title", this.tip.plus)
-					.appendTo(layer_buttons);
+
+					layer_buttons.appendChild(tip_plus);
 			}
 		}
 
@@ -607,75 +671,84 @@ ol_control_LayerSwitcher.prototype.drawList = function(ul, collection)
 
 		// Info button
 		if (this.oninfo)
-		{	$("<div>").addClass("layerInfo")
-					.on ('click', onInfo)
-					.attr("title", this.tip.info)
-					.appendTo(layer_buttons);
+		{	var div_oninfo = document.createElement("div");
+					div_oninfo.classList.add("layerInfo")
+					div_oninfo.setAttribute("title", this.tip.info)
+					div_oninfo.addEventListener('click', onInfo);
+					layer_buttons.appendChild(div_oninfo);
 		}
 		// Layer remove
 		if (this.hastrash && !layer.get("noSwitcherDelete"))
-		{	$("<div>").addClass("layerTrash")
-					.on ('click', removeLayer)
-					.attr("title", this.tip.trash)
-					.appendTo(layer_buttons);
+		{	div_layer_remove = document.createElement("div");
+			div_layer_remove.classList.add("layerTrash");
+			div_layer_remove.setAttribute("title", this.tip.trash)
+			div_layer_remove.addEventListener('click', removeLayer);
+			layer_buttons.appendChild(div_layer_remove);
 		}
 		// Layer extent
 		if (this.hasextent && layers[i].getExtent())
 		{	var ex = layers[i].getExtent();
 			if (ex.length==4 && ex[0]<ex[2] && ex[1]<ex[3])
-			{	$("<div>").addClass("layerExtent")
-					.on ('click', zoomExtent)
-					.attr("title", this.tip.extent)
-					.appendTo(layer_buttons);
+			{	div_layer_extent = document.createElement("div");
+				div_layer_extent.classList.add("layerExtent");
+				div_layer_extent.setAttribute("title", this.tip.extent)
+				div_layer_extent.addEventListener('click', zoomExtent);
+				layer_buttons.appendChild(div_layer_extent);
 			}
 		}
 
 		// Progress
 		if (this.show_progress && layer instanceof ol_layer_Tile)
-		{	var p = $("<div>")
-				.addClass("layerswitcher-progress")
-				.appendTo(d);
+		{	var p = document.createElement("div");
+					p.classList.add("layerswitcher-progress");
+				d.appendChild(p);
 			this.setprogress_(layer);
-			layer.layerswitcher_progress = $("<div>").appendTo(p);
+			layer.layerswitcher_progress = document.createElement("div")
+			p.appendChild(layer.layerswitcher_progress);
 		}
 
 		// Opacity
-		var opacity = $("<div>").addClass("layerswitcher-opacity")
-				.on("click", function(e)
+		var opacity = document.createElement("div");
+				opacity.classList.add("layerswitcher-opacity");
+				opacity.addEventListener("click", function(e)
 				{	e.stopPropagation();
 					e.preventDefault();
-					var x = e.pageX 
-						|| (e.originalEvent.touches && e.originalEvent.touches.length && e.originalEvent.touches[0].pageX) 
+					var x = e.pageX
+						|| (e.originalEvent.touches && e.originalEvent.touches.length && e.originalEvent.touches[0].pageX)
 						|| (e.originalEvent.changedTouches && e.originalEvent.changedTouches.length && e.originalEvent.changedTouches[0].pageX);
-					var dx = Math.max ( 0, Math.min( 1, (x - $(this).offset().left) / $(this).width() ));
-					$(this).closest("li").data('layer').setOpacity(dx);
+					var offset_left = this.getBoundingClientRect().left + window.pageXOffset - document.documentElement.clientLeft;
+					var dx = Math.max ( 0, Math.min( 1, (x - offset_left) / this.clientWidth ));
+					this.closest("li").dataLayer.setOpacity(dx);
 				})
-				.appendTo(d);
-		$("<div>").addClass("layerswitcher-opacity-cursor")
-				.on("mousedown touchstart", { self: this }, self.dragOpacity_ )
-				.css ('left', (layer.getOpacity()*100)+"%")
-				.appendTo(opacity);
+				d.appendChild(opacity);
+		var div_opacity_cursor = document.createElement("div");
+				div_opacity_cursor.classList.add("layerswitcher-opacity-cursor");
+				div_opacity_cursor.addEventListener("mousedown", self.dragOpacity_.bind({ self: this }));
+				div_opacity_cursor.addEventListener("touchstart", self.dragOpacity_.bind({ self: this }));
+				div_opacity_cursor.style.left = (layer.getOpacity()*100)+"%";
+				opacity.appendChild(div_opacity_cursor);
 		// Percent
-		$("<div>").addClass("layerswitcher-opacity-label")
-			.text(Math.round(layer.getOpacity()*100))
-			.appendTo(d);
+		var div_opacity_label = document.createElement("div");
+				div_opacity_label.classList.add("layerswitcher-opacity-label")
+				div_opacity_label.textContent = Math.round(layer.getOpacity()*100);
+				d.appendChild(div_opacity_label);
 
 		// Layer group
 		if (layer.getLayers)
-		{	li.addClass('ol-layer-group');
-			if (layer.get("openInLayerSwitcher")===true) 
-			{	this.drawList ($("<ul>").appendTo(li), layer.getLayers());
+		{	li.classList.add('ol-layer-group');
+			if (layer.get("openInLayerSwitcher")===true)
+			{	this.drawList (li.appendChild(document.createElement("ul")), layer.getLayers());
 			}
 		}
-		else if (layer instanceof ol_layer_Vector) li.addClass('ol-layer-vector');
-		else if (layer instanceof ol_layer_VectorTile) li.addClass('ol-layer-vector');
-		else if (layer instanceof ol_layer_Tile) li.addClass('ol-layer-tile');
-		else if (layer instanceof ol_layer_Image) li.addClass('ol-layer-image');
-		else if (layer instanceof ol_layer_Heatmap) li.addClass('ol-layer-heatmap');
+		else if (layer instanceof ol_layer_Vector) li.classList.add('ol-layer-vector');
+		else if (layer instanceof ol_layer_VectorTile) li.classList.add('ol-layer-vector');
+		else if (layer instanceof ol_layer_Tile) li.classList.add('ol-layer-tile');
+		else if (layer instanceof ol_layer_Image) li.classList.add('ol-layer-image');
+		else if (layer instanceof ol_layer_Heatmap) li.classList.add('ol-layer-heatmap');
 
 
-		// Dispatch a dralist event to allow customisation
-		this.dispatchEvent({ type:'drawlist', layer:layer, li:li.get(0) });
+		// Dispatch a draglist event to allow customisation
+		this.dispatchEvent({ type:'drawlist', layer:layer, li:li });
 	}
 
 	this.viewChange();
@@ -692,12 +765,12 @@ ol_control_LayerSwitcher.prototype.setprogress_ = function(layer)
 	{	var loaded = 0;
 		var loading = 0;
 		function draw()
-		{	if (loading === loaded) 
+		{	if (loading === loaded)
 			{	loading = loaded = 0;
-				layer.layerswitcher_progress.width(0);
+				layer.layerswitcher_progress.style.width = 0;
 			}
-			else 
-			{	layer.layerswitcher_progress.css('width', (loaded / loading * 100).toFixed(1) + '%');
+			else
+			{	layer.layerswitcher_progress.style.width = (loaded / loading * 100).toFixed(1) + '%';
 			}
 		}
 		layer.getSource().on('tileloadstart', function()

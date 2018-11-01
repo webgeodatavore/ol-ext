@@ -226,25 +226,29 @@
 			.appendTo($('> .ol-layerswitcher-buttons', e.li));
 	});
 	// Add a button to show/hide the layers
-	var button = $('<div class="toggleVisibility" title="show/hide">')
-		.text("Show/hide all")
-		.click(function()
+	var button = document.createElement("div");
+			button.className = "toggleVisibility";
+			button.setAttribute("title", "show/hide")
+			button.textContent = "Show/hide all";
+			button.addEventListener("click", function()
 		{	var a = map.getLayers().getArray();
 			var b = !a[0].getVisible();
-			if (b) button.removeClass("show");
-			else button.addClass("show");
-			for (var i=0; i<a.length; i++) 
+			if (b) button.classList.remove("show");
+			else button.classList.add("show");
+			for (var i=0; i<a.length; i++)
 			{	a[i].setVisible(b);
 			}
 		});
-	switcher.setHeader($('<div>').append(button))
+	var divHeader = document.createElement("div");
+			divHeader.appendChild(button);
+	switcher.setHeader(divHeader);
 
 	map.addControl(switcher);
 	// Insert mapbox layer in layer switcher
 	function displayInLayerSwitcher(b)
 	{	mapbox.set('displayInLayerSwitcher', b);
 	}
-	
+
 	// Get options values
 	if ($("#opb").prop("checked")) $('body').addClass('hideOpacity');
 	if ($("#percent").prop("checked")) $('body').addClass('showPercent');
