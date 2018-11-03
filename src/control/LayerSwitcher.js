@@ -92,9 +92,10 @@ var ol_control_LayerSwitcher = function(options)
 	}
 	this.panel_ = document.createElement("ul");
 	this.panel_.classList.add("panel");
+	element.appendChild(this.panel_);
 
 	var mouseWheelEventFunction = function(e)
-		{	if (self.overflow(Math.max(-1, Math.min(1, (e.originalEvent.wheelDelta || -e.originalEvent.detail)))))
+		{	if (self.overflow(Math.max(-1, Math.min(1, (e.wheelDelta || -e.detail)))))
 			{	e.stopPropagation();
 				e.preventDefault();
 			}
@@ -105,9 +106,7 @@ var ol_control_LayerSwitcher = function(options)
 	this.header_ = document.createElement("li");
 	this.header_.classList.add("ol-header");
 	this.panel_.appendChild(this.header_);
-	element.appendChild(this.panel_);
 
-	console.log(element);
 
 	ol_control_Control.call(this,
 	{	element: element,
@@ -400,8 +399,8 @@ ol_control_LayerSwitcher.prototype.dragOrdering_ = function(e)
 		case 'touchmove':
 		{	// First drag (more than 2 px) => show drag element (ghost)
 			var pageY = e.pageY
-					|| (e.touches && e.touches.length && e.touches[0].pageY)
-					|| (e.changedTouches && e.changedTouches.length && e.changedTouches[0].pageY);
+					|| (e.originalEvent.touches && e.originalEvent.touches.length && e.originalEvent.touches[0].pageY) 
+					|| (e.originalEvent.changedTouches && e.originalEvent.changedTouches.length && e.originalEvent.changedTouches[0].pageY);
 			if (drag.start && Math.abs(drag.pageY - pageY) > 2)
 			{	drag.start = false;
 				drag.elt.classList.add("drag");
@@ -431,7 +430,7 @@ ol_control_LayerSwitcher.prototype.dragOrdering_ = function(e)
 
 				var li;
 				if (!e.touches) li = e.target;
-				else li = document.elementFromPoint(e.originalEvent.touches[0].clientX, e.originalEvent.touches[0].clientY);
+				else li = document.elementFromPoint(e.touches[0].clientX, e.originalEvent.touches[0].clientY);
 				if (li.classList.contains("ol-switcherbottomdiv"))
 				{	drag.self.overflow(-1);
 					console.log('bottom')
@@ -478,7 +477,6 @@ ol_control_LayerSwitcher.prototype.dragOrdering_ = function(e)
 ol_control_LayerSwitcher.prototype.dragOpacity_ = function(e)
 {	e.data = this;
 	var drag = e.data;
-  console.log(e.type);
 	switch (e.type)
 	{	// Start opacity
 		case 'mousedown':
@@ -486,8 +484,8 @@ ol_control_LayerSwitcher.prototype.dragOpacity_ = function(e)
 		{	e.stopPropagation();
 			e.preventDefault();
 			drag.start = e.pageX
-					|| (e.originalEvent.touches && e.originalEvent.touches.length && e.originalEvent.touches[0].pageX)
-					|| (e.originalEvent.changedTouches && e.originalEvent.changedTouches.length && e.originalEvent.changedTouches[0].pageX);
+					|| (e.touches && e.touches.length && e.touches[0].pageX)
+					|| (e.changedTouches && e.changedTouches.length && e.changedTouches[0].pageX);
 			drag.elt = e.target;
 			drag.layer = drag.elt.closest("li").dataLayer;
 			drag.self = this.self;
@@ -516,8 +514,8 @@ ol_control_LayerSwitcher.prototype.dragOpacity_ = function(e)
 		// Move opacity
 		default:
 		{	var x = e.pageX
-				|| (e.originalEvent.touches && e.originalEvent.touches.length && e.originalEvent.touches[0].pageX) 
-				|| (e.originalEvent.changedTouches && e.originalEvent.changedTouches.length && e.originalEvent.changedTouches[0].pageX);
+				|| (e.touches && e.touches.length && e.touches[0].pageX) 
+				|| (e.changedTouches && e.changedTouches.length && e.changedTouches[0].pageX);
 			var offset_left_parent = drag.elt.parentElement.getBoundingClientRect().left + window.pageXOffset - document.documentElement.clientLeft;
 			var dx = Math.max ( 0, Math.min( 1, (x - offset_left_parent) / drag.elt.parentElement.clientWidth ));
 			drag.elt.style.left = (dx*100)+"%";
@@ -621,7 +619,12 @@ ol_control_LayerSwitcher.prototype.drawList = function(ul, collection)
 		// Visibility
 		var div_input_visibility = document.createElement("input");
 				div_input_visibility.setAttribute('type', layer.get('baseLayer') ? 'radio' : 'checkbox');
-				div_input_visibility.checked = layer.getVisible();
+				// div_input_visibility.checked = layer.getVisible();
+				if (layer.getVisible()) {
+					div_input_visibility.setAttribute('checked', 'checked');
+				} else {
+					div_input_visibility.removeAttribute('checked');
+				}
 				div_input_visibility.addEventListener('click', setVisibility);
 				d.appendChild(div_input_visibility);
 
@@ -714,8 +717,8 @@ ol_control_LayerSwitcher.prototype.drawList = function(ul, collection)
 				{	e.stopPropagation();
 					e.preventDefault();
 					var x = e.pageX
-						|| (e.originalEvent.touches && e.originalEvent.touches.length && e.originalEvent.touches[0].pageX)
-						|| (e.originalEvent.changedTouches && e.originalEvent.changedTouches.length && e.originalEvent.changedTouches[0].pageX);
+						|| (e.touches && e.touches.length && e.touches[0].pageX)
+						|| (e.changedTouches && e.changedTouches.length && e.changedTouches[0].pageX);
 					var offset_left = this.getBoundingClientRect().left + window.pageXOffset - document.documentElement.clientLeft;
 					var dx = Math.max ( 0, Math.min( 1, (x - offset_left) / this.clientWidth ));
 					this.closest("li").dataLayer.setOpacity(dx);
