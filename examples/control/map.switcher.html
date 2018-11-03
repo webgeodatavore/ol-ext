@@ -112,13 +112,13 @@
 		<input id="dils" type="checkbox" checked="checked" onchange="displayInLayerSwitcher(this.checked);"/>
 		<label for="dils">display "Pirate Map" in LayerSwitcher (zoom out to make it visible).</label>
 		<br/>
-		<input id="opb" type="checkbox" onchange="$('body').toggleClass('hideOpacity');" />
+		<input id="opb" type="checkbox" onchange="document.body.classList.toggle('hideOpacity');" />
 		<label for="opb">hide opacity bar</label>
 		<br/>
-		<input id="percent" type="checkbox" onchange="$('body').toggleClass('showPercent');" />
+		<input id="percent" type="checkbox" onchange="document.body.classList.toggle('showPercent');" />
 		<label for="percent">show percent information</label>
 	</div>
-	
+
 	<script type="text/javascript">
 
 	// A group layer for base layers
@@ -209,21 +209,22 @@
 		});
 	// Add a layer switcher outside the map
 	var switcher = new ol.control.LayerSwitcher(
-		{	target:$(".layerSwitcher").get(0), 
+		{	target:document.querySelector(".layerSwitcher"),
 			// displayInLayerSwitcher: function (l) { return false; },
 			show_progress:true,
 			extent: true,
 			trash: true,
 			oninfo: function (l) { alert(l.get("title")); }
 		});
-	// Add a new button to the list 
+	// Add a new button to the list
 	switcher.on('drawlist', function(e){
 		var layer = e.layer;
-		$('<div>').text('?')// addClass('layerInfo')
-			.click(function(){
+		var divLayerInfo = document.createElement('div');
+				divLayerInfo.textContent = '?';// addClass('layerInfo')
+			divLayerInfo.addEventListener("click", function(){
 				alert(layer.get('title'));
-			})
-			.appendTo($('> .ol-layerswitcher-buttons', e.li));
+			});
+			e.li.querySelector('.ol-layerswitcher-buttons').appendChild(divLayerInfo);
 	});
 	// Add a button to show/hide the layers
 	var button = document.createElement("div");
@@ -250,11 +251,11 @@
 	}
 
 	// Get options values
-	if ($("#opb").prop("checked")) $('body').addClass('hideOpacity');
-	if ($("#percent").prop("checked")) $('body').addClass('showPercent');
-	if ($("#dils").prop("checked")) displayInLayerSwitcher(true);
+	if (document.querySelector("#opb").checked) document.body.addClass('hideOpacity');
+	if (document.querySelector("#percent").checked) document.body.addClass('showPercent');
+	if (document.querySelector("#dils").checked) displayInLayerSwitcher(true);
 
 	</script>
-	
+
 </body>
 </html>
