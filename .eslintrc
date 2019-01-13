@@ -4,7 +4,11 @@
   },
   "env": {
     "browser": true,
-    "es6": true
+    "es6": true,
+    "jquery": true
+  },
+  globals: {
+    ol: true
   },
   "extends": "eslint:recommended",
   "rules": {
@@ -16,6 +20,10 @@
     "no-redeclare": "warn",
     "no-unexpected-multiline": "warn",
     "no-unused-vars": "warn",
-    "no-useless-escape": "warn"
-  }
+    "no-useless-escape": "warn",
+    "no-tabs": "warn"
+  },
+  "plugins": [
+    "html"
+  ]
 }
